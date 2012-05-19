@@ -38,11 +38,12 @@ __PACKAGE__->add_columns(
         encode_check_method => 'check_password',
     }
 );
+
 __PACKAGE__->set_primary_key("id");
 __PACKAGE__->add_unique_constraint(["email"]);
 __PACKAGE__->add_unique_constraint(["mac"]);
 
 __PACKAGE__->has_many( timers => 'TimerServer::Schema::Result::Timer',
-    { 'foreign.user_id' => 'me.id' });
+    { 'foreign.user_id' => 'self.id' });
 
 1;

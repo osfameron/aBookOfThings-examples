@@ -10,70 +10,123 @@ prepare_serializer_for_format;
 set session => 'YAML';
 
 
+sub get_user_from_session {
+    my $user_id = session('user_id');
+    if ($user_id) {
+        return schema->resultset('User')->find($user_id);
+    }
+}
 sub require_session {
-    halt('Not logged in') unless session('user');
+    get_user_from_session
+        or halt('Not authorized');
+}
+sub require_user {
+    my $user = get_user_from_session || do {
+        if (my $mac = param 'mac') {
+            schema->resultset('User')
+                ->find({ mac => $mac });
+        }
+    };
+    halt('Not authorized') unless $user;
+    return $user;
 }
 
 get '/' => sub {
     template 'index';
 };
 
-resource 'user' => (
-    create => sub {
-        my $username = param 'user';
-        my $password = param 'pass';
+sub create_user {
+    my $username = param 'user';
+    my $password = param 'pass';
 
-        if (schema->resultset('User')->find({ email => $username })) {
-            status_bad_request({ status=>'error', message=>'Duplicate user' });
-        }
-        else {
-            my $user = schema->resultset('User')->create({
-                email    => $username,
-                password => $password,
+    if (schema->resultset('User')->find({ email => $username })) {
+        return status_bad_request({ 
+            status=>'error', 
+            message=>'Duplicate user', 
+        });
+    }
+    else {
+        my $user = schema->resultset('User')->create({
+            email    => $username,
+            password => $password,
+        });
+        return status_created({ 
+            status=>'ok', 
+            id => $user->id, 
+        });
+    }
+}
+post "/user.:format" => \&create_user;
+post "/user"         => \&create_user;
+
+post "/login.:format" => \&login;
+post "/login"         => \&login;
+sub login {
+    my $username = param 'user';
+    my $password = param 'pass';
+    my $user = schema->resultset('User')->find({ email => $username });
+
+    if ($user && $user->check_password($password)) {
+        session user_id => $user->id;
+        return status_ok({ 
+            status=>'ok', 
+            message=>'Login OK', 
+        });
+    }
+    else {
+        return status_bad_request({ 
+            status=>'error', 
+            message=>'Bad username or password',
+        });
+    }
+}
+
+post "/timer.:format" => \&create_timer;
+post "/timer"         => \&create_timer;
+sub create_timer {
+    my $user = require_user;
+    my $minutes = param 'minutes' or return status_bad_request({
+        status => 'error',
+        message => 'No minutes passed',
+    });
+    my $timer = schema->resultset('Timer')->create({
+        user_id => $user->id,
+        minutes => $minutes,
+        status  => 'S', # started
+    });
+    return status_created({ 
+        status=>'ok', 
+        id => $timer->id, 
+    });
+}
+
+get "/timer/:id.:format" => \&get_timer;
+get "/timer/:id"         => \&get_timer;
+sub get_timer {
+    my $user = require_session;
+    my $id = param 'id';
+    if ($id) {
+        my $timer = $user->timers->find($id);
+        if ($timer) {
+            return status_ok({
+                status => 'ok',
+                timer => $timer->serialize,
             });
-            session user => $user;
-            status_created({ status=>'ok', id => $user->id });
         }
-    },
-);
+    }
+    return status_not_found("Timer doesn't exist");
+}
 
-resource 'login' => (
-    post => sub {
-        my $username = param 'user';
-        my $password = param 'pass';
-        if (my $user = schema->resultset('User')->find({ email => $username })) {
-            if ($user->check_password($password)) {
-                session user => $user;
-                return status_ok({ status=>'ok', message=>'Login OK' });
-            }
-        }
-        status_bad_request({ status=>'error', message=>'Bad username or password'});
-    },
-);
+get "/timer.:format" => \&get_timers;
+get "/timer"         => \&get_timers;
+sub get_timers {
+    my $user = require_session;
+    return status_ok({
+        status => 'ok',
+        timers => [ map $_->serialize, $user->timers ],
+    });
+}
 
 # API
-
-# TODO, this should be added to a subclass of ::REST
-BEGIN { no warnings 'redefine';
-sub resource {
-    my ($resource, %triggers) = @_;
- 
-    if (my $get = $triggers{get}) {
-        get "/${resource}/:id.:format" => $get;
-        get "/${resource}/:id"         => $get;
-    }
-    if (my $put = $triggers{update} || $triggers{put}) {
-        put "/${resource}/:id.:format" => $put;
-        put "/${resource}/:id"         => $put;
-    }
-    if (my $post = $triggers{create} || $triggers{post} ) {
-        post "/${resource}.:format" => $post;
-        post "/${resource}"         => $post;
-    }
-    if (my $del = $triggers{delete} || $triggers{del} ) {
-        del "/${resource}/:id.:format" => $del;
-        del "/${resource}/:id"         => $del;
-    }
-}}
 
 true;

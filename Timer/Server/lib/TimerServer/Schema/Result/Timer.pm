@@ -49,5 +49,11 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key("id");
 __PACKAGE__->belongs_to( user => 'TimerServer::Schema::Result::User',
-    { 'foreign.id' => 'me.user_id' });
+    { 'foreign.id' => 'self.user_id' });
+
+sub serialize {
+    my $self = shift;
+    return { $self->get_columns };
+}
+
 1;
