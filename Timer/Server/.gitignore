@@ -1,3 +1,6 @@
+cookie.jar
+sessions/
+*.db
 blib/
 .build/
 _build/
