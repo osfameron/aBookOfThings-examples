@@ -30,6 +30,19 @@ sub require_user {
     halt('Not authorized') unless $user;
     return $user;
 }
+sub require_timer {
+    my $user = shift;
+    my $timer = do {
+        my $id = param 'id';
+        if ($id) {
+            $user->timers->find($id);
+        }
+    };
+    halt(status_not_found("Timer doesn't exist"))
+        unless $timer;
+
+    return $timer;
+}
 
 get '/' => sub {
     template 'index';
@@ -104,17 +117,56 @@ get "/timer/:id.:format" => \&get_timer;
 get "/timer/:id"         => \&get_timer;
 sub get_timer {
     my $user = require_session;
-    my $id = param 'id';
-    if ($id) {
-        my $timer = $user->timers->find($id);
-        if ($timer) {
-            return status_ok({
-                status => 'ok',
-                timer => $timer->serialize,
-            });
-        }
+    my $timer = require_timer($user);
+    return status_ok({
+        status => 'ok',
+        timer => $timer->serialize,
+    });
+}
+
+del "/timer/:id.:format" => \&cancel_timer;
+del "/timer/:id"         => \&cancel_timer;
+sub cancel_timer {
+    my $user = require_user;
+    my $timer = require_timer($user);
+    $timer->update({ status => 'D' }); # or ->delete?
+    return status_ok({
+        status => 'ok',
+    });
+}
+
+put "/timer/:id.:format" => \&update_timer;
+put "/timer/:id"         => \&update_timer;
+sub update_timer {
+    my $user = require_user;
+    my $params = params;
+
+    my %update;
+    if (exists $params->{description}) {
+        $update{description} = $params->{description};
     }
-    return status_not_found("Timer doesn't exist");
+    if (exists $params->{minutes}) {
+        $update{minutes} = $params->{minutes}
+            or return cancel_timer;
+    }
+    if (exists $params->{complete}) {
+        $update{status} = 'C';
+    }
+
+    my $user = $update{description} ?
+        require_session
+        : require_user;
+
+    my $timer = require_timer($user);
+
+    return status_bad_request("Can't update timer unless open")
+        unless $timer->status eq 'S';
+
+    $timer->update(\%update);
+
+    return status_ok({
+        status => 'ok',
+    });
 }
 
 get "/timer.:format" => \&get_timers;
