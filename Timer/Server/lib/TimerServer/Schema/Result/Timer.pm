@@ -53,7 +53,7 @@ __PACKAGE__->belongs_to( user => 'TimerServer::Schema::Result::User',
 
 sub is_open {
     my $self = shift;
-    return $self->status eq 'S'; # started
+    return $self->status eq 'O'; # open
 }
 
 sub serialize {

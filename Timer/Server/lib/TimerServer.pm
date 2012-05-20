@@ -1,8 +1,7 @@
 package TimerServer;
 use Dancer ':syntax';
 use Dancer::Plugin::DBIC;
-use Dancer::Plugin::REST;
-use Dancer::Serializer::Text;
+use Dancer::Plugin::REST::Micro;
 
 our $VERSION = '0.1';
 
@@ -60,6 +59,8 @@ get '/' => sub {
     template 'index';
 };
 
+post "/user.:format" => \&create_user;
+post "/user"         => \&create_user;
 sub create_user {
     my $username = param 'user';
     my $password = param 'pass';
@@ -78,8 +79,6 @@ sub create_user {
         });
     }
 }
-post "/user.:format" => \&create_user;
-post "/user"         => \&create_user;
 
 post "/login.:format" => \&login;
 post "/login"         => \&login;
@@ -110,7 +109,7 @@ sub create_timer {
     my $timer = schema->resultset('Timer')->create({
         user_id  => $user->id,
         duration => $duration,
-        status   => 'S', # started
+        status   => 'O', # open
     });
     return status_created({ 
         status=>'ok', 
@@ -123,6 +122,8 @@ get "/timer/:id"         => \&get_timer;
 sub get_timer {
     my $user = require_session;
     my $timer = require_timer;
+
+    var template => 'get_timer';
     return status_ok({
         status => 'ok',
         timer => $timer->serialize,

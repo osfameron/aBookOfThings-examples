@@ -22,8 +22,8 @@ template: "template_toolkit"
 engines:
   template_toolkit:
     encoding:  'utf8'
-    start_tag: '[%'
-    end_tag:   '%]'
+#   start_tag: '[%'
+#   end_tag:   '%]'
 
 session: "YAML"
 
@@ -39,3 +39,4 @@ plugins:
       xml:  "XML"
       dump: "Dumper"
       txt:  "Text"
+      html: "HTML"

@@ -1,0 +1,19 @@
+<h1> Here is the information about the Timer </h1>
+
+<ul>
+<li>
+    ID: <% timer.id %>
+</li>
+<li>
+    Start time: <% timer.start_datetime %>
+</li>
+<li>
+    Status: <% timer.status %>
+</li>
+<li>
+    Duration: <% timer.duration %>
+</li>
+<li>
+    Description: <% timer.description %>
+</li>
+</ul>
