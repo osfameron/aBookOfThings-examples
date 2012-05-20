@@ -9,11 +9,20 @@ our $VERSION = '0.1';
 prepare_serializer_for_format;
 set session => 'YAML';
 
-
 sub get_user_from_session {
     my $user_id = session('user_id');
     if ($user_id) {
-        return schema->resultset('User')->find($user_id);
+        my $user = return schema->resultset('User')->find($user_id);
+        var user => $user;
+        return $user;
+    }
+}
+sub get_user_from_mac {
+    if (my $mac = param 'mac') {
+        my $user = schema->resultset('User')
+            ->find({ mac => $mac });
+         var user => $user;
+         return $user;
     }
 }
 sub require_session {
@@ -21,20 +30,17 @@ sub require_session {
         or halt('Not authorized');
 }
 sub require_user {
-    my $user = get_user_from_session || do {
-        if (my $mac = param 'mac') {
-            schema->resultset('User')
-                ->find({ mac => $mac });
-        }
-    };
+    my $user = var 'user'
+        || get_user_from_session 
+        || get_user_from_mac;
     halt('Not authorized') unless $user;
     return $user;
 }
 sub require_timer {
-    my $user = shift;
     my $timer = do {
+        my $user = var $user;
         my $id = param 'id';
-        if ($id) {
+        if ($user && $id) {
             $user->timers->find($id);
         }
     };
@@ -42,6 +48,11 @@ sub require_timer {
         unless $timer;
 
     return $timer;
+}
+sub require_open_timer {
+    my $timer = require_timer;
+    return status_bad_request("Can't update timer unless open")
+        unless $timer->is_open;
 }
 
 get '/' => sub {
@@ -53,10 +64,7 @@ sub create_user {
     my $password = param 'pass';
 
     if (schema->resultset('User')->find({ email => $username })) {
-        return status_bad_request({ 
-            status=>'error', 
-            message=>'Duplicate user', 
-        });
+        return status_bad_request("Duplicate user");
     }
     else {
         my $user = schema->resultset('User')->create({
@@ -87,10 +95,7 @@ sub login {
         });
     }
     else {
-        return status_bad_request({ 
-            status=>'error', 
-            message=>'Bad username or password',
-        });
+        return status_bad_request("Bad username or password");
     }
 }
 
@@ -98,14 +103,13 @@ post "/timer.:format" => \&create_timer;
 post "/timer"         => \&create_timer;
 sub create_timer {
     my $user = require_user;
-    my $minutes = param 'minutes' or return status_bad_request({
-        status => 'error',
-        message => 'No minutes passed',
-    });
+    my $duration = param 'duration' 
+        or return status_bad_request('No duration passed');
+
     my $timer = schema->resultset('Timer')->create({
-        user_id => $user->id,
-        minutes => $minutes,
-        status  => 'S', # started
+        user_id  => $user->id,
+        duration => $duration,
+        status   => 'S', # started
     });
     return status_created({ 
         status=>'ok', 
@@ -117,7 +121,7 @@ get "/timer/:id.:format" => \&get_timer;
 get "/timer/:id"         => \&get_timer;
 sub get_timer {
     my $user = require_session;
-    my $timer = require_timer($user);
+    my $timer = require_timer;
     return status_ok({
         status => 'ok',
         timer => $timer->serialize,
@@ -128,44 +132,62 @@ del "/timer/:id.:format" => \&cancel_timer;
 del "/timer/:id"         => \&cancel_timer;
 sub cancel_timer {
     my $user = require_user;
-    my $timer = require_timer($user);
+    my $timer = require_timer;
     $timer->update({ status => 'D' }); # or ->delete?
     return status_ok({
         status => 'ok',
     });
 }
 
-put "/timer/:id.:format" => \&update_timer;
-put "/timer/:id"         => \&update_timer;
-sub update_timer {
-    my $user = require_user;
-    my $params = params;
+put "/timer/:id/description.:format" => \&update_description;
+put "/timer/:id/description"         => \&update_description;
+sub update_description {
+    my $user = require_session;
+    my $timer = require_open_timer;
+    my $description = param 'description';
 
-    my %update;
-    if (exists $params->{description}) {
-        $update{description} = $params->{description};
-    }
-    if (exists $params->{minutes}) {
-        $update{minutes} = $params->{minutes}
-            or return cancel_timer;
-    }
-    if (exists $params->{complete}) {
-        $update{status} = 'C';
-    }
-
-    my $user = $update{description} ?
-        require_session
-        : require_user;
-
-    my $timer = require_timer($user);
-
-    return status_bad_request("Can't update timer unless open")
-        unless $timer->status eq 'S';
-
-    $timer->update(\%update);
+    $timer->update({ description => $description });
 
     return status_ok({
-        status => 'ok',
+        ok => 1,
+        message => 'Description updated';
+    });
+}
+
+put "/timer/:id/duration.:format" => \&update_duration;
+put "/timer/:id/duration"         => \&update_duration;
+sub update_duration {
+    my $user = require_user;
+    my $timer = require_open_timer;
+
+    my $duration = param 'duration'
+        or return update_complete;
+
+    ## NB: the following calculation has to extend the time as of now
+
+    my $start_time = $timer->start_time;
+    my $new_end_time = DateTime->now->add( minutes => $duration );
+    my $total_duration = ($new_end_time - $start_time)->minutes;
+
+    $timer->update({ duration => $total_duration });
+
+    return status_ok({
+        ok => 1,
+        message => 'Timer length updated';
+    });
+}
+
+put "/timer/:id/complete.:format" => \&update_complete;
+put "/timer/:id/complete"         => \&update_complete;
+sub update_complete {
+    my $user = require_user;
+    my $timer = require_open_timer;
+
+    $timer->update({ status => 'C' });
+
+    return status_ok({
+        ok => 1,
+        message => 'Timer marked complete';
     });
 }
 

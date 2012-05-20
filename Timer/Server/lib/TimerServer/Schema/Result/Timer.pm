@@ -32,7 +32,7 @@ __PACKAGE__->add_columns(
         set_on_create => 1,
         is_nullable   => 0,
     },
-    "minutes" => { 
+    "duration" => { 
         data_type => "integer", 
         is_nullable => 0,
     },
