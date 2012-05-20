@@ -30,7 +30,7 @@ sub require_session {
         or halt('Not authorized');
 }
 sub require_user {
-    my $user = var 'user'
+    my $user = var('user')
         || get_user_from_session 
         || get_user_from_mac;
     halt('Not authorized') unless $user;
@@ -38,7 +38,7 @@ sub require_user {
 }
 sub require_timer {
     my $timer = do {
-        my $user = var $user;
+        my $user = require_user;
         my $id = param 'id';
         if ($user && $id) {
             $user->timers->find($id);
@@ -53,6 +53,7 @@ sub require_open_timer {
     my $timer = require_timer;
     return status_bad_request("Can't update timer unless open")
         unless $timer->is_open;
+    return $timer;
 }
 
 get '/' => sub {
@@ -150,7 +151,21 @@ sub update_description {
 
     return status_ok({
         ok => 1,
-        message => 'Description updated';
+        message => 'Description updated',
+    });
+}
+
+put "/timer/:id/complete.:format" => \&update_complete;
+put "/timer/:id/complete"         => \&update_complete;
+sub update_complete {
+    my $user = require_user;
+    my $timer = require_open_timer;
+
+    $timer->update({ status => 'C' });
+
+    return status_ok({
+        ok => 1,
+        message => 'Timer marked complete',
     });
 }
 
@@ -165,31 +180,18 @@ sub update_duration {
 
     ## NB: the following calculation has to extend the time as of now
 
-    my $start_time = $timer->start_time;
+    my $start_datetime = $timer->start_datetime;
     my $new_end_time = DateTime->now->add( minutes => $duration );
-    my $total_duration = ($new_end_time - $start_time)->minutes;
+    my $total_duration = ($new_end_time - $start_datetime)->minutes;
 
     $timer->update({ duration => $total_duration });
 
     return status_ok({
         ok => 1,
-        message => 'Timer length updated';
+        message => 'Timer length updated',
     });
 }
 
-put "/timer/:id/complete.:format" => \&update_complete;
-put "/timer/:id/complete"         => \&update_complete;
-sub update_complete {
-    my $user = require_user;
-    my $timer = require_open_timer;
-
-    $timer->update({ status => 'C' });
-
-    return status_ok({
-        ok => 1,
-        message => 'Timer marked complete';
-    });
-}
 
 get "/timer.:format" => \&get_timers;
 get "/timer"         => \&get_timers;

@@ -51,6 +51,11 @@ __PACKAGE__->set_primary_key("id");
 __PACKAGE__->belongs_to( user => 'TimerServer::Schema::Result::User',
     { 'foreign.id' => 'self.user_id' });
 
+sub is_open {
+    my $self = shift;
+    return $self->status eq 'S'; # started
+}
+
 sub serialize {
     my $self = shift;
     return { $self->get_columns };
