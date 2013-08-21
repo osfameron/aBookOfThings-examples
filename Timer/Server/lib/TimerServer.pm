@@ -183,7 +183,7 @@ sub update_duration {
 
     my $start_datetime = $timer->start_datetime;
     my $new_end_time = DateTime->now->add( minutes => $duration );
-    my $total_duration = ($new_end_time - $start_datetime)->minutes;
+    my $total_duration = ($new_end_time - $start_datetime)->in_units('minutes');
 
     $timer->update({ duration => $total_duration });
 
