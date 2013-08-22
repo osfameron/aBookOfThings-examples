@@ -61,7 +61,7 @@ get '/' => sub {
 };
 
 #1
-post "/timer.:format" => sub {
+post "/timers.:format" => sub {
     my $user = require_user;
     my $duration = param 'duration' 
         or return status_bad_request('No duration passed');
@@ -78,7 +78,7 @@ post "/timer.:format" => sub {
 };
 
 #2
-put "/timer/:id/duration.:format" => {
+put "/timers/:id/duration.:format" => {
     my $user = require_user;
     my $timer = require_open_timer;
 
@@ -100,7 +100,7 @@ put "/timer/:id/duration.:format" => {
 };
 
 #3
-put "/timer/:id/complete.:format" => sub {
+put "/timers/:id/complete.:format" => sub {
     my $user = require_user;
     my $timer = require_open_timer;
 
@@ -113,7 +113,7 @@ put "/timer/:id/complete.:format" => sub {
 };
 
 #4
-del "/timer/:id.:format" => sub {
+del "/timers/:id.:format" => sub {
     my $user = require_user;
     my $timer = require_timer;
     $timer->update({ status => 'D' }); # or ->delete?
@@ -123,7 +123,7 @@ del "/timer/:id.:format" => sub {
 };
 
 #5
-put "/timer/:id/description.:format" => sub {
+put "/timers/:id/description.:format" => sub {
     my $user = require_session;
     my $timer = require_open_timer;
     my $description = param 'description';
@@ -137,7 +137,7 @@ put "/timer/:id/description.:format" => sub {
 };
 
 #6
-get "/timer.:format" => sub {
+get "/timers.:format" => sub {
     my $user = require_session;
     return status_ok({
         status => 'ok',
@@ -146,7 +146,7 @@ get "/timer.:format" => sub {
 };
 
 #7
-get "/timer/:id.:format" => sub {
+get "/timers/:id.:format" => sub {
     my $user = require_session;
     my $timer = require_timer;
     return status_ok({
