@@ -99,8 +99,8 @@ sub login {
     }
 }
 
-post "/timer.:format" => \&create_timer;
-post "/timer"         => \&create_timer;
+post "/timers.:format" => \&create_timer;
+post "/timers"         => \&create_timer;
 sub create_timer {
     my $user = require_user;
     my $duration = param 'duration' 
@@ -117,8 +117,8 @@ sub create_timer {
     });
 }
 
-get "/timer/:id.:format" => \&get_timer;
-get "/timer/:id"         => \&get_timer;
+get "/timers/:id.:format" => \&get_timer;
+get "/timers/:id"         => \&get_timer;
 sub get_timer {
     my $user = require_session;
     my $timer = require_timer;
@@ -130,8 +130,8 @@ sub get_timer {
     });
 }
 
-del "/timer/:id.:format" => \&cancel_timer;
-del "/timer/:id"         => \&cancel_timer;
+del "/timers/:id.:format" => \&cancel_timer;
+del "/timers/:id"         => \&cancel_timer;
 sub cancel_timer {
     my $user = require_user;
     my $timer = require_timer;
@@ -141,8 +141,8 @@ sub cancel_timer {
     });
 }
 
-put "/timer/:id/description.:format" => \&update_description;
-put "/timer/:id/description"         => \&update_description;
+put "/timers/:id/description.:format" => \&update_description;
+put "/timers/:id/description"         => \&update_description;
 sub update_description {
     my $user = require_session;
     my $timer = require_open_timer;
@@ -156,8 +156,8 @@ sub update_description {
     });
 }
 
-put "/timer/:id/complete.:format" => \&update_complete;
-put "/timer/:id/complete"         => \&update_complete;
+put "/timers/:id/complete.:format" => \&update_complete;
+put "/timers/:id/complete"         => \&update_complete;
 sub update_complete {
     my $user = require_user;
     my $timer = require_open_timer;
@@ -170,8 +170,8 @@ sub update_complete {
     });
 }
 
-put "/timer/:id/duration.:format" => \&update_duration;
-put "/timer/:id/duration"         => \&update_duration;
+put "/timers/:id/duration.:format" => \&update_duration;
+put "/timers/:id/duration"         => \&update_duration;
 sub update_duration {
     my $user = require_user;
     my $timer = require_open_timer;
@@ -194,8 +194,8 @@ sub update_duration {
 }
 
 
-get "/timer.:format" => \&get_timers;
-get "/timer"         => \&get_timers;
+get "/timers.:format" => \&get_timers;
+get "/timers"         => \&get_timers;
 sub get_timers {
     my $user = require_session;
     return status_ok({
